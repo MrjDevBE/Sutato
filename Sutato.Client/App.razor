@@ -1,0 +1,82 @@
+﻿@using Sutato.Client.Shared
+@using Sutato.Client.Shared.Layout
+@using Sutato.Client.Features.Errors
+@using Sutato.Client.Features.Auth.Pages
+@using Sutato.Client.Features.Auth.Services
+@inject AuthState AuthStateService
+@inject NavigationManager NavigationManager
+
+<MudThemeProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+@if (!_stateLoaded)
+{
+    <!-- Optional loading indicator while AuthState loads -->
+    <div class="d-flex justify-content-center align-items-center" style="height:100vh;">
+        <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Large" />
+    </div>
+}
+else
+{
+    <CascadingAuthenticationState>
+        <Router AppAssembly="@typeof(App).Assembly" OnNavigateAsync="HandleNavigation">
+            <Found Context="routeData">
+                @if (routeData.PageType == typeof(Login))
+                {
+                    <RouteView RouteData="@routeData" DefaultLayout="@typeof(EmptyLayout)" />
+                }
+                else
+                {
+                    <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
+                    <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+                }
+            </Found>
+
+            <NotFound>
+                <PageTitle>Not Found</PageTitle>
+                <LayoutView Layout="@typeof(MainLayout)">
+                    <NotFound />
+                </LayoutView>
+            </NotFound>
+        </Router>
+    </CascadingAuthenticationState>
+}
+
+@code {
+    private bool _stateLoaded = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        AuthStateService.OnChange += StateHasChanged;
+        await AuthStateService.LoadStateAsync();
+        _stateLoaded = true;
+    }
+
+    private Task HandleNavigation(Microsoft.AspNetCore.Components.Routing.NavigationContext args)
+    {
+        if (!_stateLoaded)
+            return Task.CompletedTask;
+
+        var path = args.Path.Trim('/').ToLowerInvariant();
+
+        // Redirect unauthenticated users away from protected pages
+        if (!AuthStateService.IsLoggedIn &&
+            path != "login" &&
+            path != "register" &&
+            path != "forgotpassword" &&
+            path != "resetpassword")
+        {
+            NavigationManager.NavigateTo("/login", forceLoad: true);
+        }
+
+        // Prevent logged-in users from going back to login/register
+        else if (AuthStateService.IsLoggedIn &&
+                 (path == "login" || path == "register" || string.IsNullOrWhiteSpace(path)))
+        {
+            NavigationManager.NavigateTo("/overview", forceLoad: true);
+        }
+
+        return Task.CompletedTask;
+    }
+}

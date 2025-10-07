@@ -1,0 +1,118 @@
+﻿@using MudBlazor
+@using Sutato.Shared.Features.Auth
+@inject Sutato.Client.Features.Auth.Services.AuthState AuthState
+
+@* <MudTextField @bind-Value="_searchText" Placeholder="Search menu..."
+              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+              Class="mb-2 w-100" /> *@
+
+<MudNavMenu>
+    <!-- Logo / Header -->
+    <div style="background-color: #002646; height: 64px; display: flex; align-items: center; padding: 20px;">
+        <img src="images/Logo.png" alt="Logo" style="height: 40px; margin-right: 0.5rem;" />
+        <span class="fw-bold" style="font-size: 1rem; color: white;">Space</span>
+    </div>
+
+    <!-- Core Application Pages -->
+    @if (AuthState.IsLoggedIn)
+    {
+        <MudNavGroup Icon="@Icons.Material.Filled.Dashboard" Title="Core Application">
+            <MudNavLink Href="/overview" Icon="@Icons.Material.Filled.Dashboard">Overview</MudNavLink>
+            <MudNavLink Href="/organization" Icon="@Icons.Material.Filled.AccountTree">Organization Management</MudNavLink>
+
+            @if (AuthState.Role == "Admin")
+            {
+                <MudNavLink Href="/users" Icon="@Icons.Material.Filled.People">User Management</MudNavLink>
+                <MudNavLink Href="/roles" Icon="@Icons.Material.Filled.Security">Role Management</MudNavLink>
+                <MudNavLink Href="/auditlogs" Icon="@Icons.Material.Filled.ListAlt">Audit Logs</MudNavLink>
+            }
+
+            <MudNavLink Href="/profile" Icon="@Icons.Material.Filled.Person">Profile & Settings</MudNavLink>
+        </MudNavGroup>
+    }
+
+    <!-- Business Functionality -->
+    @if (AuthState.IsLoggedIn)
+    {
+        <MudNavGroup Title="Business" Icon="@Icons.Material.Filled.Work">
+            <MudNavLink Href="/projects" Icon="@Icons.Material.Filled.Assignment">Projects</MudNavLink>
+            <MudNavLink Href="/tasks" Icon="@Icons.Material.Filled.Task">Tasks</MudNavLink>
+            <MudNavLink Href="/reports" Icon="@Icons.Material.Filled.InsertChart">Reports</MudNavLink>
+            <MudNavLink Href="/notifications" Icon="@Icons.Material.Filled.Notifications">Notification Center</MudNavLink>
+        </MudNavGroup>
+    }
+
+    <!-- Support & Self-Service -->
+    <MudNavGroup Title="Support" Icon="@Icons.Material.Filled.Help">
+        <MudNavLink Href="/knowledgebase" Icon="@Icons.Material.Filled.MenuBook">Knowledge Base</MudNavLink>
+        <MudNavLink Href="/tickets" Icon="@Icons.Material.Filled.ContactSupport">Help & Support</MudNavLink>
+        <MudNavLink Href="/status" Icon="@Icons.Material.Filled.MonitorHeart">System Status</MudNavLink>
+    </MudNavGroup>
+
+    <!-- Admin & Maintenance (Admins only) -->
+    @if (AuthState.Role == "Admin")
+    {
+        <MudNavGroup Title="Admin" Icon="@Icons.Material.Filled.AdminPanelSettings">
+            <MudNavLink Href="/systemconfig" Icon="@Icons.Material.Filled.Settings">System Configurations</MudNavLink>
+            <MudNavLink Href="/jobscheduler" Icon="@Icons.Material.Filled.Schedule">Job Scheduler</MudNavLink>
+            <MudNavLink Href="/dataimport" Icon="@Icons.Material.Filled.FileUpload">Data Import/Export</MudNavLink>
+        </MudNavGroup>
+    }
+
+    <!-- Extras (Admins only) -->
+    @if (AuthState.Role == "Admin")
+    {
+        <MudNavGroup Title="Extras" Icon="@Icons.Material.Filled.Extension">
+            <MudNavLink Href="/tenants" Icon="@Icons.Material.Filled.Apartment">Multi-Tenant Management</MudNavLink>
+            <MudNavLink Href="/apiexplorer" Icon="@Icons.Material.Filled.Api">API Explorer</MudNavLink>
+            <MudNavLink Href="/featureflags" Icon="@Icons.Material.Filled.ToggleOn">Feature Flags</MudNavLink>
+            <MudNavLink Href="/performance" Icon="@Icons.Material.Filled.Insights">Performance Insights</MudNavLink>
+        </MudNavGroup>
+    }
+
+    <!-- Errors (Always visible for debugging) -->
+    <MudNavGroup Title="Errors" Icon="@Icons.Material.Filled.Error">
+        <MudNavLink Href="/notfound" Icon="@Icons.Material.Filled.Warning">Not Found</MudNavLink>
+        <MudNavLink Href="/unauthorized" Icon="@Icons.Material.Filled.Lock">Unauthorized</MudNavLink>
+    </MudNavGroup>
+</MudNavMenu>
+
+
+@code {
+    private string _searchText = "";
+    private int _notificationCount = 3;
+    private int _taskCount = 7;
+
+    protected override void OnInitialized()
+    {
+        AuthState.OnChange += StateHasChanged;
+    }
+
+    public void Dispose()
+    {
+        AuthState.OnChange -= StateHasChanged;
+    }
+
+    // private RenderFragment RenderNav(string href, string icon, string text, int? badge = null) => __builder =>
+    // {
+    //     if (string.IsNullOrWhiteSpace(_searchText) ||
+    //         text.Contains(_searchText, StringComparison.OrdinalIgnoreCase))
+    //     {
+    //         __builder.OpenComponent<MudNavLink>(0);
+    //         __builder.AddAttribute(1, "Href", href);
+    //         __builder.AddAttribute(2, "Icon", icon);
+    //         __builder.AddContent(3, text);
+
+    //         if (badge.HasValue)
+    //         {
+    //             __builder.OpenComponent<MudBadge>(4);
+    //             __builder.AddAttribute(5, "Content", badge.Value);
+    //             __builder.AddAttribute(6, "Color", Color.Primary);
+    //             __builder.AddAttribute(7, "Class", "ml-2");
+    //             __builder.CloseComponent();
+    //         }
+
+    //         __builder.CloseComponent();
+    //     }
+    // };
+}

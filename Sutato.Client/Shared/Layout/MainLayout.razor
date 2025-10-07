@@ -1,0 +1,358 @@
+﻿@using Sutato.Client.Features.Auth.Services
+@using Sutato.Shared.Features.Auth
+@inherits LayoutComponentBase
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject Blazored.SessionStorage.ISessionStorageService sessionStorage
+@inject AuthState AuthStateService
+@implements IDisposable
+@inject HttpClient Http
+
+
+<MudThemeProvider Theme="_myTheme" />
+<MudDialogProvider />
+<MudSnackbarProvider Position="SnackbarPosition.TopCenter" />
+<MudPopoverProvider />
+
+<CascadingAuthenticationState>
+    <AuthorizeView>
+        <Authorized>
+            <MudLayout>
+                <MudDrawerContainer>
+                    <MudDrawer @bind-Open="_drawerOpen"
+                               Elevation="1"
+                               Variant="DrawerVariant.Responsive"
+                               Anchor="Anchor.Start"
+                               Style="height: 100vh; background-color: #e6f4f1;">
+                        <NavMenu />
+                    </MudDrawer>
+
+
+                    <!-- Main Content -->
+                    <MudMainContent Style="height: 100vh; overflow-y: auto;">
+                        <MudAppBar Elevation="4" Color="Color.Primary">
+                            <!-- Collapse Icon -->
+                            <MudIconButton Icon="@(_drawerOpen ? Icons.Material.Filled.ChevronLeft : Icons.Material.Filled.ChevronRight)"
+                                           Color="Color.Inherit"
+                                           OnClick="ToggleDrawer"
+                                           Edge="Edge.Start" />
+
+                            <MudSpacer />
+
+
+                            <span class="fw-bold" style="font-size: 1rem; color: #e49d22;">@_userFullName</span>
+                            <!-- Notification Bell -->
+                            <MudIconButton Icon="@Icons.Material.Filled.Notifications"
+                                           Color="Color.Inherit"
+                                           Size="Size.Medium"
+                                           OnClick="ShowNotification" />
+
+                            <!-- Profile Menu -->
+                            <div class="d-flex justify-content-end align-items-center gap-2">
+                                <button class="btn btnProfile" @onclick="ToggleOffcanvas" style="background: none; border: none; padding: 0;">
+                                    <MudIcon Icon="@Icons.Material.Filled.AccountCircle"
+                                             Color="Color.Inherit"
+                                             Style="transition: transform 0.3s ease; cursor: pointer;" />
+                                </button>
+                            </div>
+
+                            <!-- Offcanvas stays in DOM -->
+                            <div class="offcanvas offcanvas-end @( _isOffcanvasOpen ? "show" : "" )" tabindex="-1">
+                                <div class="offcanvas-header">
+                                    <h6 class="offcanvas-title">Profile</h6>
+                                    <button type="button" class="btn-close text-reset" @onclick="ToggleOffcanvas" aria-label="Close"></button>
+                                </div>
+                                <div class="offcanvas-body">
+                                    <MudCard>
+                                        <MudCardContent>
+                                            <div class="profile-name fw-bold">@_userFullName</div>
+                                            <div class="profile-email text-muted">user.email@example.com</div>
+                                        </MudCardContent>
+                                    </MudCard>
+
+                                    <hr />
+
+                                    <ul class="navbar-nav">
+                                        <li class="nav-item offcanvas-item mb-2">
+                                            <a class="nav-link" href="profile/profile-settings" @onclick="CloseSidebar">
+                                                <MudIcon Icon="@Icons.Material.Filled.Settings" /> Profile settings
+                                            </a>
+                                        </li>
+                                        <li class="nav-item offcanvas-item">
+                                            <button class="nav-link btn btn-link text-start w-100" @onclick="ConfirmLogout">
+                                                <MudIcon Icon="@Icons.Material.Filled.Logout" /> Sign out
+                                            </button>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            @if (_showSessionWarning)
+                            {
+                                <div class="session-backdrop">
+                                    <div class="session-modal">
+                                        <div class="modal-header">
+                                            <h4 class="modal-title text-danger">Session Expiring!</h4>
+                                        </div>
+                                        <div class="modal-body">
+                                            <MudText Typo="Typo.body1" Color="Color.Primary">
+                                                @_sessionMessage
+                                                <img src="images/hourglass.gif"
+                                                     width="20"
+                                                     height="20"
+                                                     style="margin-left:8px; vertical-align:middle;" />
+                                            </MudText>
+                                            <MudProgressLinear Color="Color.Error" Value="@_progress" Class="my-3" />
+                                        </div>
+                                        <div class="modal-footer d-flex gap-2 justify-content-end">
+                                            <MudButton Color="Color.Primary" Variant="Variant.Text" OnClick="StayLoggedIn">Stay Logged In</MudButton>
+                                            <MudButton Color="Color.Secondary" Variant="Variant.Text" OnClick="Logout">Logout</MudButton>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+
+
+
+
+                        </MudAppBar>
+
+                        <MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
+                            @if (_showSettings)
+                            {
+                                <Settings OnBack="@(() => _showSettings = false)" />
+                            }
+                            else
+                            {
+                                @Body
+                            }
+                        </MudContainer>
+                    </MudMainContent>
+                </MudDrawerContainer>
+            </MudLayout>
+        </Authorized>
+
+        <NotAuthorized>
+            <MudContainer MaxWidth="MaxWidth.False" Class="pa-0">
+                <CRMS.WebApp.Client.Pages.Login OnLoginSuccess="HandleLoginSuccess" />
+            </MudContainer>
+        </NotAuthorized>
+    </AuthorizeView>
+</CascadingAuthenticationState>
+
+<!-- Floating Text -->
+<div class="floating-text">
+    <MudText Typo="Typo.body2" Align="Align.Center">
+        This is a floating Footer text .
+    </MudText>
+</div>
+
+<!-- #region name -->
+<style>
+    .floating-text {
+        position: fixed;
+        bottom: 10px; /* Adjust the distance from the bottom */
+        left: 10px; /* Move the text 10px from the left edge */
+        background-color: rgba(0, 0, 0, 0); /* Transparent background */
+        color: black;
+        font-size: 16px;
+        z-index: 1000;
+    }
+
+    .btnProfile svg {
+        color: white !important;
+    }
+
+    .navbar-nav .offcanvas-item .nav-link {
+        color: #002646 !important;
+    }
+
+    .offcanvas-title {
+        color: #002646;
+    }
+
+    .offcanvas {
+        background: #e6f4f1;
+        box-shadow: -4px 0 6px rgba(0,0,0,0.2);
+        width: 300px;
+        position: fixed;
+        top: 0;
+        bottom: 0;
+        right: 0;
+        z-index: 1050;
+        /* Transition magic */
+        transform: translateX(100%);
+        opacity: 0;
+        visibility: hidden;
+        transition: transform 0.4s ease, opacity 0.4s ease, visibility 0.4s;
+    }
+
+        .offcanvas.show {
+            transform: translateX(0);
+            opacity: 1;
+            visibility: visible;
+        }
+
+    /* Fullscreen dark background */
+    .session-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0,0,0,0.6);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 2000;
+    }
+
+    /* Centered modal box */
+    .session-modal {
+        background: #fff;
+        border-radius: 12px;
+        padding: 20px;
+        width: 400px;
+        max-width: 90%;
+        box-shadow: 0 6px 16px rgba(0,0,0,0.3);
+        display: flex;
+        flex-direction: column;
+        animation: fadeIn 0.3s ease-out;
+    }
+
+        /* Header */
+        .session-modal .modal-header {
+            margin-bottom: 10px;
+        }
+
+        /* Footer */
+        .session-modal .modal-footer {
+            margin-top: 15px;
+        }
+
+    
+</style>
+
+<!-- #endregion -->
+@code {
+    private bool _drawerOpen = true;
+    private bool _showSettings = false;
+    private string _userFullName = "PROFILE NAME";
+    private string _userRole = "Reader";
+    private bool _isOffcanvasOpen = false;
+    private bool _logoutDueToExpiry = false;
+
+    private bool _showSessionWarning = false;
+    private string _sessionMessage = "Your session will expire soon!";
+    private int _progress = 100;
+    private System.Timers.Timer? _sessionTimer;
+
+    private MudTheme _myTheme = new MudTheme()
+    {
+        PaletteLight = new PaletteLight()
+        {
+            Primary = "#002646"
+        }
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await AuthStateService.LoadStateAsync();
+
+        // Adjusted for Action / Func<Task> events
+        AuthStateService.OnSessionWarning += () => ShowSessionWarning();
+        AuthStateService.OnSessionExpired += async () => await HandleSessionExpired();
+    }
+
+    private void ToggleDrawer() => _drawerOpen = !_drawerOpen;
+    private void OpenUserProfile() => Snackbar.Add("Profile clicked", Severity.Info);
+    private void ShowSettings() => _showSettings = true;
+    private void HandleLoginSuccess() => Navigation.NavigateTo("/", true);
+    private void ShowNotification() => Snackbar.Add("No new notifications", Severity.Normal);
+    private void ToggleOffcanvas() => _isOffcanvasOpen = !_isOffcanvasOpen;
+    private void CloseSidebar() => _isOffcanvasOpen = false;
+
+    
+    private void ShowSessionWarning()
+    {
+        _progress = 100;
+        _sessionMessage = "Your session will expire in less than a minute!";
+        _showSessionWarning = true;
+
+        _sessionTimer?.Stop();
+        _sessionTimer = new System.Timers.Timer(1000); // 1s tick
+        _sessionTimer.Elapsed += async (_, _) =>
+        {
+            if (_progress > 0)
+            {
+                _progress -= 2; // 50s countdown
+                await InvokeAsync(StateHasChanged);
+            }
+            else
+            {
+                _sessionTimer?.Stop();
+                await InvokeAsync(HandleSessionExpired);
+            }
+        };
+        _sessionTimer.Start();
+    }
+
+    private async Task StayLoggedIn()
+    {
+        _sessionTimer?.Stop();
+        _showSessionWarning = false;
+
+        var token = await AuthStateService.GetTokenAsync();
+        var response = await Http.PostAsJsonAsync(
+            "https://localhost:7061/api/auth/refresh",
+            new { Token = token }
+        );
+
+        if (response.IsSuccessStatusCode)
+        {
+            var loginResponse = await response.Content.ReadFromJsonAsync<LoginResponse>();
+            await AuthStateService.SetLoggedIn(true, loginResponse!.Token);
+            Snackbar.Add("Session extended!", Severity.Success);
+        }
+        else
+        {
+            Snackbar.Add("Could not extend session.", Severity.Error);
+        }
+    }
+
+
+    private async Task HandleSessionExpired()
+    {
+        _logoutDueToExpiry = true;
+        await Logout();
+    }
+
+    private async Task ConfirmLogout()
+    {
+        _logoutDueToExpiry = false; // manual logout
+        await Logout();
+    }
+
+    private async Task Logout()
+    {
+        await AuthStateService.Logout();
+
+        if (_logoutDueToExpiry)
+        {
+            _logoutDueToExpiry = false;
+            Snackbar.Add("Session expired. Please log in again.", Severity.Warning);
+        }
+        else
+        {
+            Snackbar.Add("You have been logged out.", Severity.Info);
+        }
+
+        Navigation.NavigateTo("/login", forceLoad: true);
+    }
+
+    public void Dispose()
+    {
+        AuthStateService.OnSessionWarning -= () => ShowSessionWarning();
+        AuthStateService.OnSessionExpired -= async () => await HandleSessionExpired();
+    }
+}

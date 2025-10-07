@@ -1,0 +1,182 @@
+﻿@page "/overview"
+@using Sutato.Client.Features.Auth.Services
+@inject NavigationManager Navigation
+@inject AuthState AuthStateService
+@inject HttpClient Http
+@inject Blazored.SessionStorage.ISessionStorageService sessionStorage
+@using Microsoft.AspNetCore.SignalR.Client
+@using MudBlazor
+@using System.Timers
+@implements IAsyncDisposable
+
+<h3 class="mb-4">Dashboard Overview</h3>
+
+@if (!_isLoaded)
+{ <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Large" Class="m-5" />
+}
+else
+{ <MudGrid> <!-- KPI Cards --> <MudItem xs="12" sm="6" md="3"> <MudPaper Elevation="3" Class="pa-4"> <MudText Typo="Typo.subtitle2" Color="Color.Primary">Active Users</MudText> <MudText Typo="Typo.h5">@_kpi.ActiveUsers</MudText> </MudPaper> </MudItem>
+
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Elevation="3" Class="pa-4">
+            <MudText Typo="Typo.subtitle2" Color="Color.Primary">Projects Running</MudText>
+            <MudText Typo="Typo.h5">@_kpi.ProjectsRunning</MudText>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Elevation="3" Class="pa-4">
+            <MudText Typo="Typo.subtitle2" Color="Color.Primary">Pending Tasks</MudText>
+            <MudText Typo="Typo.h5">@_kpi.PendingTasks</MudText>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Elevation="3" Class="pa-4">
+            <MudText Typo="Typo.subtitle2" Color="Color.Primary">Notifications</MudText>
+            <MudText Typo="Typo.h5">@_kpi.Notifications</MudText>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+<MudDivider Class="my-4" />
+
+<MudGrid>
+    <!-- Chart Section -->
+    <MudItem xs="12" md="8">
+        <MudPaper Class="pa-4" Elevation="3">
+            <MudText Typo="Typo.subtitle1" Class="mb-2">Activity Trend</MudText>
+                <MudChart ChartType="ChartType.Line"
+                          Labels="@_labels"
+                          Datasets="@_datasets"
+                          DatasetLabels='new[] { "Activity" }' />
+
+        </MudPaper>
+    </MudItem>
+
+    <!-- Role-Based Summary -->
+    <MudItem xs="12" md="4">
+        <MudPaper Class="pa-4" Elevation="3">
+            <MudText Typo="Typo.subtitle1" Class="mb-2">User Role Summary</MudText>
+
+            @if (AuthStateService.Role == "Admin")
+            {
+                    <MudList T="string">
+                        <MudListItem>System Health: <MudText Color="Color.Success">Good</MudText></MudListItem>
+                        <MudListItem>Pending Approvals: 4</MudListItem>
+                        <MudListItem>Server Load: 63%</MudListItem>
+                    </MudList>
+
+            }
+            else if (AuthStateService.Role == "Manager")
+            {
+                    <MudList T="string">
+                        <MudListItem>Team Per: <MudText Color="Color.Success">Good</MudText></MudListItem>
+                        <MudListItem>Open Ticket: 4</MudListItem>
+                        <MudListItem>Tasks in Review: 3</MudListItem>
+                    </MudList>
+
+                    <MudList T="string">
+                        @foreach (var item in _recentActivity)
+                        {
+                            <MudListItem>@item</MudListItem>
+                        }
+                    </MudList>
+
+            }
+            else
+            {
+                    <MudList T="string">
+                        @foreach (var item in _recentActivity)
+                        {
+                            <MudListItem>@item</MudListItem>
+                        }
+                    </MudList>
+
+            }
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+<MudDivider Class="my-4" />
+
+<!-- Recent Activity -->
+<MudPaper Elevation="3" Class="pa-4">
+    <MudText Typo="Typo.subtitle1" Class="mb-2">Recent Activity</MudText>
+
+    @if (_recentActivity?.Any() == true)
+    {
+            <MudList T="string">
+                @foreach (var item in _recentActivity)
+                {
+                    <MudListItem>@item</MudListItem>
+                }
+            </MudList>
+
+    }
+    else
+    {
+            <MudText Typo="Typo.body2" Class="text-secondary">No recent activity.</MudText>
+
+    }
+</MudPaper>
+
+
+}
+
+@code {
+    private bool _isLoaded = false;
+    private (int ActiveUsers, int ProjectsRunning, int PendingTasks, int Notifications) _kpi;
+    private List<string> _recentActivity = new();
+    private string[] _labels = { "Mon", "Tue", "Wed", "Thu", "Fri" };
+    private double[][] _datasets = { new double[] { 12, 19, 9, 14, 22 } };
+    private HubConnection? _hubConnection;
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // ✅ Correct hub URL (server must host this)
+            var hubUrl = Navigation.ToAbsoluteUri("https://localhost:7061/hubs/dashboard");
+
+            _hubConnection = new HubConnectionBuilder()
+                .WithUrl(hubUrl)
+                .WithAutomaticReconnect()
+                .Build();
+
+            _hubConnection.On<int, int, int, int>("UpdateKpi", (users, projects, tasks, notifications) =>
+            {
+                _kpi = (users, projects, tasks, notifications);
+                InvokeAsync(StateHasChanged);
+            });
+
+            _hubConnection.On<string>("ReceiveActivity", (message) =>
+            {
+                _recentActivity.Insert(0, message);
+                if (_recentActivity.Count > 10)
+                    _recentActivity.RemoveAt(_recentActivity.Count - 1);
+                InvokeAsync(StateHasChanged);
+            });
+
+            await _hubConnection.StartAsync();
+            Console.WriteLine("✅ Connected to SignalR dashboard hub");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ SignalR connection error: {ex.Message}");
+        }
+
+        _isLoaded = true;
+    }
+
+
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_hubConnection is not null)
+        {
+            await _hubConnection.DisposeAsync();
+            Console.WriteLine("🔌 Disconnected from SignalR dashboard hub");
+        }
+    }
+
+}

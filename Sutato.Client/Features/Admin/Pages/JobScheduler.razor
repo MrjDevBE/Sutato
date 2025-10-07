@@ -1,0 +1,24 @@
+﻿@page "/jobscheduler"
+
+<h3>Job Scheduler</h3>
+<p>Upcoming scheduled jobs:</p>
+
+<table class="table">
+    <thead>
+        <tr><th>Job</th><th>Schedule</th><th>Status</th></tr>
+    </thead>
+    <tbody>
+        <tr><td>Daily Backup</td><td>02:00 AM</td><td>Active</td></tr>
+        <tr><td>Email Digest</td><td>08:00 AM</td><td>Active</td></tr>
+        <tr><td>Cleanup Logs</td><td>Sunday 01:00 AM</td><td>Paused</td></tr>
+    </tbody>
+</table>
+
+@code {
+
+}
+
+
+
+
+@* View/trigger background jobs (Hangfire UI or custom). *@

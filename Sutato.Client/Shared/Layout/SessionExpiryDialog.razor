@@ -1,0 +1,57 @@
+﻿<MudDialog>
+    <DialogContent>
+        <MudText Typo="Typo.h6">@Message</MudText>
+        <MudProgressLinear Color="Color.Error" Value="@Progress" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton Color="Color.Primary" OnClick="@StayLoggedIn">Stay</MudButton>
+        <MudButton Color="Color.Secondary" OnClick="@Logout">Logout</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    IDialogReference DialogReference { get; set; } = default!;
+
+    [Parameter] public string Message { get; set; } = string.Empty;
+
+    private int Progress = 100;
+    private System.Timers.Timer? _timer;
+
+    protected override void OnInitialized()
+    {
+        _timer = new System.Timers.Timer(1000);
+        _timer.Elapsed += async (_, _) =>
+        {
+            if (Progress > 0)
+            {
+                Progress -= 2; // counts down (50s → 0)
+                await InvokeAsync(StateHasChanged);
+            }
+            else
+            {
+                _timer?.Stop();
+                await InvokeAsync(Logout); // ✅ run on UI thread
+            }
+        };
+        _timer.Start();
+    }
+
+    private async Task StayLoggedIn()
+    {
+        _timer?.Stop();
+        await InvokeAsync(() =>
+        {
+            DialogReference.Close(DialogResult.Ok(true));
+        });
+    }
+
+    private async Task Logout()
+    {
+        _timer?.Stop();
+        await InvokeAsync(() =>
+        {
+            DialogReference.Close(DialogResult.Ok(false));
+        });
+    }
+}
