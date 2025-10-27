@@ -42,7 +42,7 @@ namespace Sutato.Server.Features.Dashboard
                 await _hubContext.Clients.All.SendAsync("UpdateKpi", activeUsers, projects, tasks, notifications);
                 await _hubContext.Clients.All.SendAsync("ReceiveActivity", $"Updated at {DateTime.Now:T}");
 
-                await Task.Delay(45000); // every 45 seconds
+                await Task.Delay(15000); // every 45 seconds
             }
         }
 

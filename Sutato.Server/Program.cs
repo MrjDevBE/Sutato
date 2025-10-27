@@ -18,7 +18,7 @@ builder.Services.Configure<ApiSettings>(builder.Configuration.GetSection("ApiSet
 
 // Register Services
 builder.Services.AddScoped<TokenService>();
-builder.Services.AddScoped<DashboardService>(); //  Corrected line
+builder.Services.AddScoped<DashboardService>();
 builder.Services.AddControllers();
 
 // Read allowed origins from config
@@ -31,21 +31,20 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowBlazorClient", policy =>
     {
-        policy.WithOrigins(allowedOrigins) // from appsettings
+        policy.WithOrigins(allowedOrigins)
               .AllowAnyHeader()
               .AllowAnyMethod()
-              .AllowCredentials(); // required for SignalR
+              .AllowCredentials();
     });
 });
 
-// JWT Settings Validation
+// JWT
 var secret = builder.Configuration["JwtSettings:Secret"] ?? throw new InvalidOperationException("Missing JwtSettings:Secret");
 var issuer = builder.Configuration["JwtSettings:Issuer"] ?? throw new InvalidOperationException("Missing JwtSettings:Issuer");
 var audience = builder.Configuration["JwtSettings:Audience"] ?? throw new InvalidOperationException("Missing JwtSettings:Audience");
 
 var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret));
 
-// Authentication & Authorization
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -67,10 +66,9 @@ builder.Services
         {
             OnAuthenticationFailed = context =>
             {
-                if (context.Exception.GetType() == typeof(SecurityTokenExpiredException))
-                {
+                if (context.Exception is SecurityTokenExpiredException)
                     context.Response.Headers.Add("Token-Expired", "true");
-                }
+
                 return Task.CompletedTask;
             }
         };
@@ -85,16 +83,27 @@ builder.Services.AddSignalR();
 var app = builder.Build();
 
 app.UseCors("AllowBlazorClient");
-
 app.UseAuthentication();
 app.UseAuthorization();
-Task.Run(async () =>
+
+app.MapControllers();
+app.MapHub<DashboardHub>("/hubs/dashboard");
+
+// 🟢 Background Dashboard Demo Updates (safe start)
+_ = Task.Run(async () =>
 {
+    await Task.Delay(2000); // small delay to let app fully boot
     using var scope = app.Services.CreateScope();
     var dashboardService = scope.ServiceProvider.GetRequiredService<DashboardService>();
-    await dashboardService.StartDemoUpdates();
+
+    try
+    {
+        await dashboardService.StartDemoUpdates();
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"[DashboardService] Error in background updates: {ex.Message}");
+    }
 });
-app.MapControllers();
-app.MapHub<DashboardHub>("/hubs/dashboard"); //  good placement
 
 app.Run();

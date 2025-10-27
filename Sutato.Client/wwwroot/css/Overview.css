@@ -1,0 +1,32 @@
+﻿.kpi-card {
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+    .kpi-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+    }
+
+/* Background colors */
+.bg-primary-light {
+    background-color: #e6f4f1;
+}
+
+.bg-secondary-light {
+    background-color: #e6f4f1;
+}
+
+.bg-warning-light {
+    background-color: #e49d22;
+}
+
+.bg-info-light {
+    background-color: #e6f4f1;
+}
+
+/* Chart text */
+.mud-chart {
+    color: #002646;
+}
